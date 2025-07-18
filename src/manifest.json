@@ -1,0 +1,22 @@
+{
+    "testId": "32755722-15b9-401a-b9c1-58530309b4bc",
+    "name": "Feedback Loop",
+    "version": "1.0.0",
+    "manifestVersion": 2,
+    "requirements": {
+        "apps": [
+            {
+                "name": "Express",
+                "apiVersion": 1
+            }
+        ]
+    },
+    "entryPoints": [
+        {
+            "type": "panel",
+            "id": "panel1",
+            "main": "index.html",
+            "documentSandbox": "code.js"
+        }
+    ]
+}
