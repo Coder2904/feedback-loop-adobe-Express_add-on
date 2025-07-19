@@ -1,7 +1,5 @@
 // FeedbackLoopAddOn.jsx
 import React, { useState, useEffect } from "react";
-import "./App.css"; //
-
 import {
   Link,
   Bell,
@@ -15,48 +13,17 @@ import {
   Plus,
   X,
 } from "lucide-react";
+import "./App.css";
 
-const FeedbackLoopAddOn = () => {
-  const [projectData, setProjectData] = useState({
-    title: "Brand Guidelines Template",
-    id: "proj_123456",
-    dimensions: "1080x1080",
-    lastModified: new Date().toLocaleDateString(),
-  });
+const BACKEND_URL = "http://localhost:3001"; // Update when deployed!
 
+const FeedbackLoopAddOn = ({ sandboxProxy }) => {
+  // State hooks
+  const [projectData, setProjectData] = useState(null);
   const [reviewLink, setReviewLink] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [feedbackList, setFeedbackList] = useState([
-    {
-      id: 1,
-      type: "suggestion",
-      priority: "high",
-      message: "The logo seems too small in the header",
-      reviewer: "Sarah Johnson",
-      timestamp: "2 hours ago",
-      status: "pending",
-    },
-    {
-      id: 2,
-      type: "compliment",
-      priority: "low",
-      message: "Love the color scheme! Very professional.",
-      reviewer: "Mike Chen",
-      timestamp: "3 hours ago",
-      status: "acknowledged",
-    },
-    {
-      id: 3,
-      type: "bug",
-      priority: "medium",
-      message: "Text alignment issue in the footer section",
-      reviewer: "Alex Rivera",
-      timestamp: "5 hours ago",
-      status: "pending",
-    },
-  ]);
-
+  const [feedbackList, setFeedbackList] = useState([]);
   const [activeTab, setActiveTab] = useState("create");
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
@@ -66,31 +33,110 @@ const FeedbackLoopAddOn = () => {
     emailNotifications: true,
   });
 
+  // Fetch project data on mount
+  useEffect(() => {
+    if (sandboxProxy?.getDocumentInfo) {
+      sandboxProxy.getDocumentInfo().then((info) => {
+        setProjectData({
+          id: info.id,
+          title: info.title,
+          dimensions: `${info.dimensions.width}x${info.dimensions.height}`,
+          lastModified: new Date(info.lastModified).toLocaleDateString(),
+        });
+      });
+    }
+  }, [sandboxProxy]);
+
+  // Fetch feedback when tab switches or new review generated
+  useEffect(() => {
+    if (activeTab === "feedback" && projectData?.id) fetchFeedback();
+    // eslint-disable-next-line
+  }, [activeTab, projectData?.id]);
+
+  // Fetch feedback API
+  const fetchFeedback = async () => {
+    if (!projectData?.id) return;
+    const res = await fetch(
+      `${BACKEND_URL}/api/reviews/${projectData.id}/feedback`
+    );
+    const data = await res.json();
+    setFeedbackList(data.data || []);
+  };
+
+  // POST: create review session
   const generateReviewLink = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      const generatedLink = `https://express.ly/review/${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      setReviewLink(generatedLink);
-      setIsGenerating(false);
-    }, 2000);
+    const document = await sandboxProxy.getDocumentInfo();
+    const preview = await sandboxProxy.generatePreview();
+    const reviewers = settings.reviewerEmails
+      ?.split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+
+    const res = await fetch(`${BACKEND_URL}/api/reviews`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        document,
+        preview,
+        settings: { ...settings, reviewerEmails: reviewers },
+        userId: "user-creator-demo",
+      }),
+    });
+    const result = await res.json();
+    setReviewLink(result.url);
+    setIsGenerating(false);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
+  // POST: submit feedback from UI form
+  const [feedbackForm, setFeedbackForm] = useState({
+    type: "suggestion",
+    priority: "medium",
+    message: "",
+    reviewer: { name: "", email: "" },
+  });
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+  const submitFeedback = async (e) => {
+    e.preventDefault();
+    if (!feedbackForm.message.trim()) return;
+    setSendingFeedback(true);
+    const res = await fetch(
+      `${BACKEND_URL}/api/reviews/${projectData.id}/feedback`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...feedbackForm,
+          documentId: projectData.id,
+        }),
+      }
+    );
+    const { data: newFeedback } = await res.json();
+    setFeedbackList((list) => [newFeedback, ...list]);
+    setFeedbackForm({
+      type: "suggestion",
+      priority: "medium",
+      message: "",
+      reviewer: { name: "", email: "" },
+    });
+    setSendingFeedback(false);
   };
 
-  const markFeedbackResolved = (id) => {
-    setFeedbackList((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: "resolved" } : item
+  // PATCH: resolve feedback
+  const markFeedbackResolved = async (feedbackId) => {
+    await fetch(`${BACKEND_URL}/api/feedback/${feedbackId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "resolved" }),
+    });
+    setFeedbackList((list) =>
+      list.map((item) =>
+        item._id === feedbackId ? { ...item, status: "resolved" } : item
       )
     );
   };
 
+  // Helper icons and status CSS
   const getTypeIcon = (type) => {
     switch (type) {
       case "bug":
@@ -194,6 +240,19 @@ const FeedbackLoopAddOn = () => {
                 />
                 Enable email notifications
               </label>
+              <label>
+                Reviewer emails (comma separated):
+                <input
+                  type="text"
+                  value={settings.reviewerEmails || ""}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      reviewerEmails: e.target.value,
+                    }))
+                  }
+                />
+              </label>
             </div>
             <div className="panel-footer">
               <button onClick={() => setShowSettings(false)}>Cancel</button>
@@ -230,19 +289,26 @@ const FeedbackLoopAddOn = () => {
 
       {/* Content */}
       <div className="content">
+        {/* Tab: Create Review Link */}
         {activeTab === "create" && (
           <div className="tab-content">
             <div className="card project-info">
               <h3>Project</h3>
-              <p>
-                <strong>Title:</strong> {projectData.title}
-              </p>
-              <p>
-                <strong>Dimensions:</strong> {projectData.dimensions}
-              </p>
-              <p>
-                <strong>Last Modified:</strong> {projectData.lastModified}
-              </p>
+              {projectData ? (
+                <>
+                  <p>
+                    <strong>Title:</strong> {projectData.title}
+                  </p>
+                  <p>
+                    <strong>Dimensions:</strong> {projectData.dimensions}
+                  </p>
+                  <p>
+                    <strong>Last Modified:</strong> {projectData.lastModified}
+                  </p>
+                </>
+              ) : (
+                <p>Loading project info…</p>
+              )}
             </div>
 
             <button
@@ -259,7 +325,13 @@ const FeedbackLoopAddOn = () => {
                 <p className="success-title">Link Generated!</p>
                 <div className="link-wrapper">
                   <input type="text" value={reviewLink} readOnly />
-                  <button onClick={() => copyToClipboard(reviewLink)}>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(reviewLink);
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    }}
+                  >
                     {linkCopied ? (
                       <CheckCircle className="icon copied" />
                     ) : (
@@ -273,12 +345,67 @@ const FeedbackLoopAddOn = () => {
           </div>
         )}
 
+        {/* Tab: Feedback display, submission & resolve */}
         {activeTab === "feedback" && (
           <div className="tab-content">
+            <form className="feedback-form" onSubmit={submitFeedback}>
+              <select
+                value={feedbackForm.type}
+                onChange={(e) =>
+                  setFeedbackForm((f) => ({ ...f, type: e.target.value }))
+                }
+              >
+                <option value="suggestion">Suggestion</option>
+                <option value="bug">Bug</option>
+                <option value="compliment">Compliment</option>
+              </select>
+              <select
+                value={feedbackForm.priority}
+                onChange={(e) =>
+                  setFeedbackForm((f) => ({ ...f, priority: e.target.value }))
+                }
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+              <input
+                placeholder="Your name"
+                value={feedbackForm.reviewer.name}
+                onChange={(e) =>
+                  setFeedbackForm((f) => ({
+                    ...f,
+                    reviewer: { ...f.reviewer, name: e.target.value },
+                  }))
+                }
+              />
+              <input
+                placeholder="Your email"
+                value={feedbackForm.reviewer.email}
+                onChange={(e) =>
+                  setFeedbackForm((f) => ({
+                    ...f,
+                    reviewer: { ...f.reviewer, email: e.target.value },
+                  }))
+                }
+              />
+              <textarea
+                placeholder="Feedback"
+                value={feedbackForm.message}
+                onChange={(e) =>
+                  setFeedbackForm((f) => ({ ...f, message: e.target.value }))
+                }
+                required
+              />
+              <button type="submit" disabled={sendingFeedback}>
+                {sendingFeedback ? "Sending..." : "Submit Feedback"}
+              </button>
+            </form>
+
             <h3 className="section-title">Feedback ({feedbackList.length})</h3>
 
             {feedbackList.map((feedback) => (
-              <div className="card feedback-card" key={feedback.id}>
+              <div className="card feedback-card" key={feedback._id}>
                 <div className="feedback-header">
                   <div className="icon-area">
                     {getTypeIcon(feedback.type)}
@@ -287,18 +414,19 @@ const FeedbackLoopAddOn = () => {
                     </span>
                   </div>
                   <div className="timestamp">
-                    <Clock className="icon" /> {feedback.timestamp}
+                    <Clock className="icon" />{" "}
+                    {new Date(feedback.createdAt).toLocaleString()}
                   </div>
                 </div>
                 <div className="feedback-body">
                   <p>{feedback.message}</p>
-                  <small>- {feedback.reviewer}</small>
+                  <small>- {feedback.reviewer?.name || "Anonymous"}</small>
                 </div>
                 <div className="feedback-footer">
                   {feedback.status === "pending" && (
                     <button
                       className="resolve"
-                      onClick={() => markFeedbackResolved(feedback.id)}
+                      onClick={() => markFeedbackResolved(feedback._id)}
                     >
                       Mark Resolved
                     </button>
@@ -309,6 +437,7 @@ const FeedbackLoopAddOn = () => {
                 </div>
               </div>
             ))}
+            {!feedbackList.length && <p>No feedback yet.</p>}
           </div>
         )}
       </div>

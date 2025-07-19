@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 mongoose.connect(
-  process.env.MONGODB_URI || "mongodb://localhost:27017/feedbackloop",
+  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/feedbackloop",
   {
     useNewUrlParser: true,
     useUnifiedTopology: true,
