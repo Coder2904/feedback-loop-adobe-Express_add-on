@@ -36,3 +36,8 @@ app.use("/api/feedback", feedbackRoutes);
 app.listen(PORT, () => {
   console.log(`✅ Feedback Loop API running at http://localhost:${PORT}`);
 });
+
+if (process.env.NODE_ENV === "production") {
+  const compression = require("compression");
+  app.use(compression());
+}
