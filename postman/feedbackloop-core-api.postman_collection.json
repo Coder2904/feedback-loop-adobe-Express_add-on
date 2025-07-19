@@ -1,0 +1,78 @@
+{
+  "info": {
+    "_postman_id": "a65d12be-df4b-4766-8e0d-b0107d5c3721",
+    "name": "FeedbackLoop Core APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Review Session",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "http://localhost:3001/api/reviews",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "reviews"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"document\": { \"id\": \"doc_test_id\", \"title\": \"Test Doc\", \"dimensions\": { \"width\": 1080, \"height\": 720 }, \"lastModified\": \"2025-07-19T10:05:00Z\" },\n  \"preview\": { \"timestamp\": \"2025-07-19T10:06:00Z\", \"elements\": [] }\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Submit Feedback",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "http://localhost:3001/api/reviews/<REVIEW_ID>/feedback",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "reviews", "<REVIEW_ID>", "feedback"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"documentId\": \"doc_test_id\",\n  \"type\": \"suggestion\",\n  \"priority\": \"medium\",\n  \"message\": \"Great start!\",\n  \"reviewer\": { \"name\": \"Test User\", \"email\": \"test@email.com\" }\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Feedback List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3001/api/reviews/doc_test_id/feedback",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "reviews", "doc_test_id", "feedback"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Mark Feedback Resolved",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "http://localhost:3001/api/feedback/<FEEDBACK_ID>",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "feedback", "<FEEDBACK_ID>"]
+        },
+        "body": { "mode": "raw", "raw": "{ \"status\": \"resolved\" }" }
+      },
+      "response": []
+    }
+  ]
+}
