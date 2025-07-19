@@ -9,11 +9,12 @@
       "domains": ["https://localhost:5241"]
     }
   },
-  "uiEntry": {
-    "type": "panel",
-    "src": "index.html"
-  },
-  "sandboxEntry": {
-    "src": "code.js"
-  }
+  "entryPoints": [
+    {
+      "type": "panel",
+      "id": "panel1",
+      "main": "index.html",
+      "documentSandbox": "code.js"
+    }
+  ]
 }
