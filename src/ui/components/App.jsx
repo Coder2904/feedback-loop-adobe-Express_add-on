@@ -1,3 +1,4 @@
+//App.jsx
 import "@spectrum-web-components/theme/express/scale-medium.js";
 import "@spectrum-web-components/theme/express/theme-light.js";
 

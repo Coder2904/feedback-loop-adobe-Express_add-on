@@ -1,4 +1,4 @@
-/* Existing stuff at the top (if any) */
+/*App.css--> Existing stuff at the top (if any) */
 .container {
   padding: 1rem;
 }
@@ -34,8 +34,8 @@
 .tabs {
   display: flex;
   border-bottom: 1px solid #ccc;
+  margin: 2px;
 }
-
 .tab {
   display: flex;
   justify-content: center;
